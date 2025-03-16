@@ -1,0 +1,7 @@
+!This is a sample form
+!Wow, look at this
+&form1 Epic Form
+field f1 Awesome Fieldness
+submit sub1 SUBMIT HERE!!!
+&nav Navigation
+submit next Next Page
