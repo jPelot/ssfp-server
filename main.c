@@ -1,10 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <mysql/mysql.h>
 #include "ssfp-server.h"
 #include "socket.h"
 #include "strarray.h"
+
 
 char *load_file(const char *filename) {
   char *source = NULL;
@@ -35,55 +37,67 @@ char *load_file(const char *filename) {
   return source;
 }
 
-MYSQL*
-connect_to_database()
-{
-  MYSQL *con = mysql_init(NULL);
-  if (con == NULL) {
-    printf("Database init failed.\n");
-    return NULL;
-  }
-
-  if (mysql_real_connect(con, "127.0.0.1", "root", "password", "ssfp", 3306, NULL, 0) == NULL) {
-    printf("MySql Connection Failed\n");
-    return NULL;
-  }
-  printf("Database connection successful!\n");
-  return con;
-}
-
 void
-select_print(const char* query) {
-  MYSQL_RES *res;
-  MYSQL_ROW row;  
-  MYSQL *con = connect_to_database();
-  if (con == NULL) return;
-
-  if (mysql_query(con, query)) {
-    printf("Select failed\n");
-    return;
+add_key_value(StrArray arr, char *key, char *value)
+{
+  if (value == NULL) {
+    value = "";
   }
-
-  res = mysql_store_result(con);
-  if (res == NULL) {
-    printf("Store Results failed.\n");
-    return;
-  }
-
-  int num_fields = mysql_num_fields(res);
-
-  while ((row = mysql_fetch_row(res))) {
-    for (int i = 0; i < num_fields; i++) {
-      printf("%s ", row[i] ? row[i] : "NULL");
-    }
-    printf("\n");
-  }
-
-  mysql_free_result(res);
-  mysql_close(con);
+  StrArray_add(arr, "&");
+  StrArray_add(arr, key);
+  StrArray_add(arr, "=");
+  StrArray_add(arr, value);
 }
 
+char *
+get_from_php(SSFP_Request *request, char *context)
+{
+  FILE *fp;
+  char buffer[1024];
 
+  char filename[64];
+  filename[0] = '\0';
+  strcat(filename, "forms/");
+  strcat(filename,context);
+  strcat(filename, ".php");
+  if (access(filename, F_OK) != 0) {
+    strcpy(filename, "forms/default.php");
+  }
+  
+  StrArray query = StrArray_create();
+
+  for (int i = 0; i < request->num_items; i++) {
+    add_key_value(query, request->items[i], request->item_data[i]);
+  }
+  add_key_value(query, "SUBMIT", request->submit_id);
+  add_key_value(query, "FORM", request->form_id);
+  add_key_value(query, "SESSION", request->session);
+  add_key_value(query, "CONTEXT", context);
+
+  char *query_string = StrArray_combine(query);
+
+  const char *format_string = "QUERY_STRING=\"%s\" SCRIPT_FILENAME=%s REDIRECT_STATUS=1 php-cgi";
+  char command[2000];
+  snprintf(command, sizeof(command), format_string, query_string, filename);
+
+  fp = popen(command, "r");
+  if (fp == NULL) {
+    perror("popen failed");
+    return NULL;
+  }
+
+  StrArray out = StrArray_create();
+
+  while (fgets(buffer, sizeof(buffer), fp)) {
+    StrArray_add(out, buffer);
+  }
+
+  char *out_string = StrArray_combine(out);
+  StrArray_destroy(query);
+  StrArray_destroy(out);
+  
+  return out_string;
+}
 
 void
 handle_request(char *message)
@@ -98,28 +112,24 @@ handle_request(char *message)
 
   SSFP_Response response;
 
-  // Context switching
-  if(request->submit_id == NULL) {request->submit_id = "";}
-  if (strcmp(request->submit_id, "next") == 0) {request->context = "page2";}
-  if (strcmp(request->submit_id, "back") == 0) {request->context = "default";}
+  char *submit_id = request->submit_id;
+  char *context = request->context;
 
+  if (context == NULL) {context = "default";}
 
-  char *filename;
-  if (strcmp(request->context, "page2") == 0) {filename = "forms/page2.txt";}
-  else {filename = "forms/form.txt";}
-  char *form_file = load_file(filename);
-  response = response_from_file(form_file);
+  char *response_text = get_from_php(request, context);
+  response = response_from_file(response_text);
 
+  printf("New context: %s\n", response.context);
   
-
-  char *value = get_request_value(request, "f1");
-  printf("Request value: %s\n", value);
-  //set_response_value(&response, "form1", "f1", get_request_value(request, "f1"));
-
-  set_response_value(&response, "form1", "f1", value);
-
-  select_print("SELECT * FROM `ssfp-test`");
+  if (response.context != NULL) {
+    if (strcmp(response.context, context) != 0) {
+      response_text = get_from_php(request, response.context);
+      response = response_from_file(response_text);
+    }
+  }
   
+    
   printf("Building response");
   char *return_message = build_response(response);
 

@@ -193,7 +193,6 @@ response_from_file(char *str)
   SSFP_Response response;
   response = new_response();
   Strbuff strbuff = {str, str};
-
   SSFP_Form *cur_form = NULL;
 
   char *cur_line;
@@ -202,7 +201,14 @@ response_from_file(char *str)
       cur_form = new_form();
       VoidArray_add(response.forms, cur_form);
       cur_form->id = copy_string(next_token(&cur_line)+1); 
-      cur_form->name = copy_string(next_token(&cur_line)); 
+      cur_form->name = copy_string(cur_line); 
+    }
+    else if (*cur_line == '+') {
+      char *key = next_token(&cur_line)+1;
+      char **target;
+      if      (strcmp(key, "SESSION") == 0) {target = &response.session;}
+      else if (strcmp(key, "CONTEXT") == 0) {target = &response.context;}
+      *target = copy_string(cur_line);
     }
     else if (*cur_line == '!') {
       StrArray_add(response.statuses, cur_line+1);

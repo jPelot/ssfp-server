@@ -1,5 +1,6 @@
 !This is a sample form
-!Wow, look at this
+!Wow, look at this form
+!editable forms!!!
 &form1 Epic Form
 field f1 Awesome Fieldness
 submit sub1 SUBMIT HERE!!!
