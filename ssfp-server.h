@@ -42,7 +42,7 @@ typedef struct ssfp_form
   StrArray item_types;
   StrArray item_ids;
   StrArray item_names;
-  StrArray item_data;
+  VoidArray item_data;
 } SSFP_Form;
 
 typedef struct ssfp_response
@@ -60,5 +60,5 @@ char *build_response(SSFP_Response);
 SSFP_Response new_response();
 SSFP_Response response_from_file(char *str);
 char* get_request_value(SSFP_Request*, char *element_id);
-void set_response_value(SSFP_Response*, char *form_id, char *element_id, char *value);
+//void set_response_value(SSFP_Response*, char *form_id, char *element_id, char *value);
 #endif // ssfp_server_h

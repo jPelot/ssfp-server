@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include "strarray.h"
 
 #define INITIAL_SIZE 10
@@ -136,6 +137,7 @@ char **
 StrArray_copy_array(StrArray arr) {
   char ** out = malloc(sizeof(char*)*arr->length);
   for (int i = 0; i < arr->length; i++) {
+    printf("Copy array: %s\n", arr->arr[i]);
     out[i] = malloc(strlen(arr->arr[i])+1);
     strcpy(out[i], arr->arr[i]);
   }

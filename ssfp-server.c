@@ -183,7 +183,7 @@ new_form()
   form->item_types = StrArray_create();
   form->item_ids = StrArray_create();
   form->item_names = StrArray_create();
-  form->item_data = StrArray_create();
+  form->item_data = VoidArray_create();
   return form;
 }
 
@@ -194,6 +194,7 @@ response_from_file(char *str)
   response = new_response();
   Strbuff strbuff = {str, str};
   SSFP_Form *cur_form = NULL;
+  StrArray cur_item_data = NULL;
 
   char *cur_line;
   while ((cur_line = next_filled_line(&strbuff, "\n")) != NULL) {
@@ -213,12 +214,20 @@ response_from_file(char *str)
     else if (*cur_line == '!') {
       StrArray_add(response.statuses, cur_line+1);
     }
+    else if (*cur_line == '-') {
+      if (cur_item_data == NULL) {
+        continue;
+      }
+      StrArray_add(cur_item_data, "\n");
+      StrArray_add(cur_item_data, cur_line+1);
+    }
     else {
       if (cur_form == NULL) continue;
       StrArray_add(cur_form->item_types, next_token(&cur_line));
       StrArray_add(cur_form->item_ids,   next_token(&cur_line));
       StrArray_add(cur_form->item_names, cur_line);
-      StrArray_add(cur_form->item_data, "");
+      cur_item_data = StrArray_create();
+      VoidArray_add(cur_form->item_data, cur_item_data);
     }
   }
 
@@ -236,6 +245,7 @@ get_request_value(SSFP_Request *request, char *element_id)
   return "";
 }
 
+/*
 void
 set_response_value(SSFP_Response *response, char *form_id, char* element_id, char* value)
 {
@@ -257,6 +267,7 @@ set_response_value(SSFP_Response *response, char *form_id, char* element_id, cha
     }
   }
 }
+*/
 
 char*
 build_response(SSFP_Response response)
@@ -286,8 +297,8 @@ build_response(SSFP_Response response)
       StrArray_add(out, StrArray_get(cur_form->item_ids, j));
       StrArray_add(out, " ");
       StrArray_add(out, StrArray_get(cur_form->item_names, j));
-      StrArray_add(out, "\n");
-      StrArray_add(out, StrArray_get(cur_form->item_data, j));
+      //StrArray_add(out, "\n");
+      StrArray_add_arr(out, VoidArray_get(cur_form->item_data, j));
       StrArray_add(out, "\r\n");
     }
   }

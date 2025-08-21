@@ -5,7 +5,7 @@ RM     = rm -f
 HEADERS = socket.h strarray.h intarray.h voidarray.h ssfp_server.h
 OBJECTS = socket.o strarray.o intarray.o voidarray.o ssfp-server.o
 
-LDFLAGS = -L/usr/local/ssl/lib -L/user/lib/mysql
+LDFLAGS = -L/usr/local/ssl/lib -L/user/lib/mysql -Llibs/inih-r58
 LDLIBS = -lssl -lcrypto -lmysqlclient
 
 default: all
